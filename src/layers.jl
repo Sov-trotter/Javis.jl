@@ -56,7 +56,7 @@ macro JLayer(
     transparent::QuoteNode,
     body::Expr,
 )
-    # frame range 1:50 is an expr
+    # frame range is an expr
     # transparent -> Symbol is a QuoteNode
     esc(
         to_layer_m(
@@ -134,11 +134,6 @@ function to_layer_m(
         Javis.PUSH_TO_LAYER[1] = true
         eval($body)
         Javis.PUSH_TO_LAYER[1] = false
-
-        # not a problem now but a todo for later
-        # remove duplicate backgrounds
-        # if layer's background is defined, delete the first object 
-        # which is the video's background
         layer
     end
 end
@@ -186,22 +181,40 @@ end
 
 
 #todo tests and docstrings
-function to_layer!(l::Layer, object::Object)
+function to_layer!(layer::Layer, object::Object)
     remove_from_video(object)
-    push!(l.layer_objects, object)
+    push!(layer.layer_objects, object)
 end
 
-
-function to_layer!(l::Layer, objects::Vector{Object})
+function to_layer!(layer::Layer, objects::Vector{Object})
     remove_from_video(objects)
-    push!(l.layer_objects, objects...)
+    push!(layer.layer_objects, objects...)
+end
+
+# pushes a layer inside the to_layer
+function to_layer!(to_layer::Layer, layer::Layer)
+    remove_from_video(layer)
+    push!(to_layer.sublayers, layer)
+end
+
+function to_layer!(to_layer::Layer, layers::Vector{Layer})
+    remove_from_video(layers)
+    push!(to_layer.sublayers, layers...)
 end
 
 function remove_from_video(object::Object)
     filter!(x->x!=object, CURRENT_VIDEO[1].objects)
 end
 
-
 function remove_from_video(objects::Vector{Object})
     filter!(x->x∉objects, CURRENT_VIDEO[1].objects)
 end
+
+function remove_from_video(layer::Layer)
+    filter!(x->x!=layer, CURRENT_VIDEO[1].layers)
+end
+
+function remove_from_video(layers::Vector{Layer})
+    filter!(x->x∉layers, CURRENT_VIDEO[1].layers)
+end
+

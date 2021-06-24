@@ -104,6 +104,7 @@ include("action_animations.jl")
 include("javis_viewer.jl")
 include("latex.jl")
 include("object_values.jl")
+include("sublayers.jl")
 
 """
     projection(p::Point, l::Line)
@@ -186,9 +187,16 @@ This makes things easier for the [`preprocess_frames!`](@ref) method
 function flatten(layers::Vector{AbstractObject})
     objects = AbstractObject[]
     for layer in layers
+        !isempty(layer.sublayers) && flatten!(objects, layer.sublayers)
         flatten!(objects, layer)
     end
     return objects
+end
+
+function flatten!(objects, sublayers::Vector{AbstractObject})
+    for sublayer in sublayers
+        flatten!(objects, sublayer)
+    end
 end
 
 function flatten!(objects::Array{AbstractObject}, l::Layer)
@@ -383,10 +391,17 @@ Is called inside [`get_javis_frame`](@ref) and does two things viz.
 Returns the Drawing of the layer as an image matrix.
 """
 function get_layer_frame(video, layer, frame)
-    Drawing(layer.width, layer.height, :image)
     layer_frames = layer.frames
-    render_objects(layer.layer_objects, video, frame, layer_frames = layer_frames)
 
+    # render sub layers beforehand
+    sublayers = layer.sublayers
+    if !isempty(sublayers)
+        render_sublayers(sublayers, video, frame, layer_frames = layer_frames)
+    end
+
+    Drawing(layer.width, layer.height, :image)
+    render_objects(layer.layer_objects, video, frame, layer_frames = layer_frames)
+    
     if frame in get_frames(layer)
         # call currently active actions and their transformations for each layer
         actions = layer.actions
@@ -402,6 +417,12 @@ function get_layer_frame(video, layer, frame)
             end
         end
     end
+
+    # place sublayers on the layer's drawing
+    if !isempty(sublayers)
+        place_sublayers(sublayers, frame, layer_frames=layer_frames)
+    end
+
     img_layer = image_as_matrix()
     finish()
     return img_layer
@@ -462,7 +483,6 @@ function place_layers(video, layers, frame)
                 apply_layer_settings(layer_settings, layer.position)
                 placeimage(layer.image_matrix, pt, alpha = layer.current_setting.opacity)
             end
-            # println(layer.position)
         end
 
         lc = layer.layer_cache
@@ -575,7 +595,7 @@ function draw_object(object, video, frame, origin_matrix, layer_frames)
         # actions of objects in a layer
         # this is somewhat nested since object and action defined in a layer
         # both have their respective frame ranges that need to be calculated relatively
-        rel_frame = frame - first(get_frames(object)) - first(layer_frames.frames) + 1
+        rel_frame = frame - first(get_frames(object)) - first(layer_frames.frames) + 2
     end
     # call currently active actions and their transformations
     for action in object.actions

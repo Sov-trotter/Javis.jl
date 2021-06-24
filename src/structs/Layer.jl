@@ -20,6 +20,7 @@ mutable struct Layer <: AbstractObject
     height::Int
     position::Point
     layer_objects::Vector{AbstractObject}
+    sublayers::Vector{AbstractObject}
     actions::Vector{AbstractAction}
     current_setting::LayerSetting
     opts::Dict{Symbol,Any}
@@ -42,6 +43,7 @@ function Layer(
     height::Int,
     position::Point;
     layer_objects::Vector{AbstractObject} = AbstractObject[],
+    sublayers::Vector{Layer} = Layer[],
     actions::Vector{AbstractAction} = AbstractAction[],
     setting::LayerSetting = LayerSetting(),
     misc::Dict{Symbol,Any} = Dict{Symbol,Any}(),
@@ -54,6 +56,7 @@ function Layer(
         height,
         position,
         layer_objects,
+        sublayers,
         actions,
         setting,
         misc,
@@ -61,12 +64,18 @@ function Layer(
         layer_cache,
     )
 
-    if isempty(CURRENT_LAYER)
-        push!(CURRENT_LAYER, layer)
+
+    if PUSH_TO_LAYER[1]
+        push!(CURRENT_LAYER[1].layer_objects, layer)
     else
-        CURRENT_LAYER[1] = layer
+        push!(CURRENT_VIDEO[1].layers, layer)
     end
-    push!(CURRENT_VIDEO[1].layers, layer)
+
+    # if isempty(CURRENT_LAYER)
+    #     push!(CURRENT_LAYER, layer)
+    # else
+    #     CURRENT_LAYER[1] = layer
+    # end
 
     return layer
 end
